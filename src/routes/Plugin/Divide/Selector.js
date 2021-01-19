@@ -3,10 +3,11 @@ import { Modal, Form, Select, Input, Switch, Button, message, Tooltip } from "an
 import { connect } from "dva";
 import styles from "../index.less";
 import { getIntlContent } from "../../../utils/IntlUtils";
+import SelectorConditionComponent from './SelectorConditionComponent';
+import HttpConfig from './HttpConfig';
 
 const FormItem = Form.Item;
 const { Option } = Select;
-
 @connect(({ global }) => ({
   platform: global.platform
 }))
@@ -284,6 +285,12 @@ class AddModal extends Component {
         sm: { span: 4 }
       }
     };
+
+    const layout = {
+      labelCol: { span: 3 },
+      wrapperCol: { span: 20 },
+    };
+
     return (
       <Modal
         width={1100}
@@ -295,14 +302,15 @@ class AddModal extends Component {
         onOk={this.handleSubmit}
         onCancel={onCancel}
       >
-        <Form onSubmit={this.handleSubmit} className="login-form">
-          <FormItem label={getIntlContent("SOUL.PLUGIN.SELECTOR.LIST.COLUMN.NAME")} {...formItemLayout}>
+        <Form {...layout} onSubmit={this.handleSubmit} className="login-form">
+          <FormItem label={getIntlContent("SOUL.PLUGIN.SELECTOR.LIST.COLUMN.NAME")}>
             {getFieldDecorator("name", {
               rules: [{ required: true, message: getIntlContent("SOUL.COMMON.INPUTNAME")}],
               initialValue: name
             })(<Input placeholder={getIntlContent("SOUL.PLUGIN.SELECTOR.LIST.COLUMN.NAME")} />)}
           </FormItem>
-          <FormItem label={getIntlContent("SOUL.COMMON.TYPE")} {...formItemLayout}>
+
+          <FormItem label={getIntlContent("SOUL.COMMON.TYPE")}>
             {getFieldDecorator("type", {
               rules: [{ required: true, message: getIntlContent("SOUL.COMMON.SELCTTYPE")}],
               initialValue: type || "1"
@@ -318,9 +326,10 @@ class AddModal extends Component {
               </Select>
             )}
           </FormItem>
+
           {selectValue !== "0" && (
             <Fragment>
-              <FormItem label={getIntlContent("SOUL.COMMON.MATCHTYPE")} {...formItemLayout}>
+              <FormItem label={getIntlContent("SOUL.COMMON.MATCHTYPE")}>
                 {getFieldDecorator("matchMode", {
                   rules: [{ required: true, message: getIntlContent("SOUL.COMMON.INPUTMATCHTYPE") }],
                   initialValue: matchMode
@@ -336,106 +345,16 @@ class AddModal extends Component {
                   </Select>
                 )}
               </FormItem>
+
               {/* 条件 */}
-              <div className={styles.condition}>
-                {/* 输入框左侧标题 */}
-                <h3 className={styles.header}>
-                  <strong>*</strong>{getIntlContent("SOUL.COMMON.CONDITION")}:{" "}
-                </h3>
-
-                <div>
-                  {selectorConditions.map((item, index) => {
-                    return (
-                      <ul key={index}>
-                        <li>
-                          <Select
-                            onChange={value => {
-                              this.conditionChange(index, "paramType", value);
-                            }}
-                            value={item.paramType}
-                            style={{ width: 90}}
-                          >
-                            {paramTypeEnums.map(typeItem => {
-                              return (
-                                <Option
-                                  key={typeItem.name}
-                                  value={typeItem.name}
-                                >
-                                  {typeItem.name}
-                                </Option>
-                              );
-                            })}
-                          </Select>
-                        </li>
-                        <li
-                          style={{
-                            display: this.state[`paramTypeValueEn${index}`]
-                              ? "none"
-                              : "block"
-                          }}
-                        >
-                          <Input
-                            onChange={e => {
-                              this.conditionChange(
-                                index,
-                                "paramName",
-                                e.target.value
-                              );
-                            }}
-                            value={item.paramName}
-                            style={{ width: 100 }}
-                          />
-                        </li>
-                        <li>
-                          <Select
-                            onChange={value => {
-                              this.conditionChange(index, "operator", value);
-                            }}
-                            value={item.operator}
-                            style={{ width: 80 }}
-                          >
-                            {operatorEnums.map(opearte => {
-                              return (
-                                <Option key={opearte.name} value={opearte.name}>
-                                  {opearte.name}
-                                </Option>
-                              );
-                            })}
-                          </Select>
-                        </li>
-
-                        <li>
-                          <Input
-                            onChange={e => {
-                              this.conditionChange(
-                                index,
-                                "paramValue",
-                                e.target.value
-                              );
-                            }}
-                            value={item.paramValue}
-                            style={{ width: 300 }}
-                          />
-                        </li>
-                        <li>
-                          <Button
-                            type="danger"
-                            onClick={() => {
-                              this.handleDelete(index);
-                            }}
-                          >
-                            {getIntlContent("SOUL.COMMON.DELETE.NAME")}
-                          </Button>
-                        </li>
-                      </ul>
-                    );
-                  })}
-                </div>
-
-                <Button onClick={this.handleAdd} type="primary">
-                  {getIntlContent("SOUL.COMMON.ADD")}
-                </Button>
-              </div>
+              <FormItem label={getIntlContent("SOUL.COMMON.CONDITION")}>
+                {
+                  getFieldDecorator('selectorConditions', {
+                    rules: [{ required: true, message: getIntlContent("SOUL.COMMON.INPUTMATCHTYPE") }],
+                    initialValue: selectorConditions
+                  })(<SelectorConditionComponent />)
+                }
+              </FormItem>
             </Fragment>
           )}
           <div className={styles.layout}>
@@ -447,7 +366,7 @@ class AddModal extends Component {
               })(<Switch />)}
             </FormItem>
             <FormItem
-              style={{ margin: "0 30px" }}
+              style={{ margin: "0 100px" }}
               {...formCheckLayout}
               label={getIntlContent("SOUL.SELECTOR.PRINTLOG")}
             >
@@ -465,168 +384,17 @@ class AddModal extends Component {
               })(<Switch />)}
             </FormItem>
           </div>
+          <FormItem label={getIntlContent("SOUL.COMMON.SETTING")}>
+            {
+              getFieldDecorator('upstreamList', {
+                initialValue: upstreamList,
+                rules: [{ required: true }],
+              })(
+                <HttpConfig />
+              )
+            }
+          </FormItem>
           {/* http配置 */}
-          <div className={styles.condition}>
-            <h3 className={styles.header} style={{width:105}}>
-              <strong>*</strong>{getIntlContent("SOUL.COMMON.SETTING")}:
-            </h3>
-            <div className={styles.content}>
-              {upstreamList.map((item, index) => {
-                return (
-                  <table key={index}>
-                    <tbody>
-                      <tr>
-                        <td>
-                          <Tooltip title="HostName">
-                            <Input
-                              addonBefore={<div style={{width:70}}>host</div>}
-                              onChange={e => {
-                              this.divideHandleChange(
-                                index,
-                                "upstreamHost",
-                                e.target.value
-                              );
-                            }}
-                              placeholder="HostName"
-                              value={item.upstreamHost}
-                              style={{ width: 200 }}
-                            />
-                          </Tooltip>
-                        </td>
-                        <td>
-                          <Tooltip title="protocol">
-                            <Input
-                              addonBefore={<div style={{width:70}}>protocol</div>}
-                              onChange={e => {
-                              this.divideHandleChange(
-                                index,
-                                "protocol",
-                                e.target.value
-                              );
-                            }}
-                              placeholder="http://"
-                              value={item.protocol}
-                              style={{ width: 200 }}
-                            />
-                          </Tooltip>
-                        </td>
-                        <td>
-                          <Tooltip title="ip:port">
-                            <Input
-                              addonBefore={<div style={{width:70}}>ip:port</div>}
-                              onChange={e => {
-                              this.divideHandleChange(
-                                index,
-                                "upstreamUrl",
-                                e.target.value
-                              );
-                            }}
-                              placeholder="ip:port"
-                              value={item.upstreamUrl}
-                              style={{ width: 200 }}
-                            />
-                          </Tooltip>
-                        </td>
-
-                        <td>
-                          <Tooltip title="weight">
-                            <Input
-                              addonBefore={<div style={{width:70}}>weight</div>}
-                              onChange={e => {
-                              this.divideHandleChange(
-                                index,
-                                "weight",
-                                e.target.value
-                              );
-                            }}
-                              placeholder="weight"
-                              value={item.weight}
-                              style={{ width: 200 }}
-                            />
-                          </Tooltip>
-                        </td>
-                        <td>
-                          <Button
-                            type="danger"
-                            onClick={() => {
-                            this.divideHandleDelete(index);
-                          }}
-                          >
-                            {getIntlContent("SOUL.COMMON.DELETE.NAME")}
-                          </Button>
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td>
-                          <Tooltip title="startup timestamp">
-                            <Input
-                              addonBefore={<div style={{width:70}}>startupTime</div>}
-                              style={{ width: 200 }}
-                              onChange={e => {
-                              this.divideHandleChange(
-                                index,
-                                "timestamp",
-                                e.target.value
-                              );
-                            }}
-                              placeholder="timestamp"
-                              type="number"
-                              value={`${item.timestamp? item.timestamp : "0"}`}
-                            />
-                          </Tooltip>
-                        </td>
-
-                        <td>
-                          <Tooltip title="warmup time(ms)">
-                            <Input
-                              addonBefore={<div style={{width:70}}>warmupTime</div>}
-                              style={{ width: 200 }}
-                              onChange={e => {
-                              this.divideHandleChange(
-                                index,
-                                "warmup",
-                                e.target.value
-                              );
-                            }}
-                              placeholder="warmup time(ms)"
-                              type="number"
-                              value={`${item.warmup? item.warmup : "0"}`}
-                            />
-                          </Tooltip>
-                        </td>
-
-                        <td>
-                          <Tooltip title="status">
-                            <Select
-                              onChange={value => {
-                              this.divideHandleChange(
-                                index,
-                                "status",
-                                value
-                              );
-                            }}
-                              value={`${item.status? item.status : true}`}
-                              style={{ width: 200 }}
-                            >
-                              <Option key="open" value="true">open</Option>
-                              <Option key="close" value="false">close</Option>
-                            </Select>
-                          </Tooltip>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                );
-              })}
-            </div>
-            <div>
-              <Button onClick={this.divideHandleAdd} type="primary">
-                {getIntlContent("SOUL.COMMON.ADD")}
-              </Button>
-            </div>
-          </div>
-
           <FormItem label={getIntlContent("SOUL.SELECTOR.EXEORDER")} {...formItemLayout}>
             {getFieldDecorator("sort", {
               initialValue: sort,
