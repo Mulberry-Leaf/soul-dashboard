@@ -1,5 +1,6 @@
 import { message } from "antd";
-import { queryPlatform, getAllPlugins, asyncOnePlugin } from "../services/api";
+import { routerRedux } from "dva/router";
+import { queryPlatform, getAllPlugins, asyncOnePlugin, getUserPermissionByToken } from "../services/api";
 import {getIntlContent} from "../utils/IntlUtils";
 
 export default {
@@ -9,7 +10,9 @@ export default {
     collapsed: false,
     platform: {},
     plugins: [],
-    currentRouter: {}
+    currentRouter: {},
+    permissions: {},
+    language: '',
   },
 
   effects: {
@@ -49,10 +52,69 @@ export default {
       } else {
         message.warn(json.message);
       }
-    }
+    },
+    *fetchPermission({ payload }, { call, put }) {
+      const { callback } = payload;
+      let permissions = { menu: [], button: [] };
+      const token = window.sessionStorage.getItem("token");
+      if(token){
+        const params = { token };
+        const json = yield call(getUserPermissionByToken, params);
+        if (json.code === 200) {
+          let { menu, currentAuth } = json.data;
+          permissions = { menu, button: currentAuth };
+        } else{
+          message.warn(getIntlContent('SOUL.PERMISSION.EMPTY'));
+          yield put(
+            routerRedux.push({
+              pathname: "/user/login"
+            }) 
+          ); 
+        }
+      } 
+
+      yield put({
+        type: "savePermissions",
+        payload: { permissions }
+      });
+      callback(permissions);
+    },
+    *refreshPermission({ payload }, { call, put }) {
+      const { callback } = payload;
+      let permissions = { menu: [], button: [] };
+      const token = window.sessionStorage.getItem("token");
+      if(token){
+        const params = { token };
+        const json = yield call(getUserPermissionByToken, params);
+        if (json.code === 200) {
+          let { menu, currentAuth } = json.data;
+          permissions = { menu, button: currentAuth };
+        }
+      } 
+
+      yield put({
+        type: "savePermissions",
+        payload: { permissions }
+      });
+      callback(permissions);
+    },
+
+    *resetPermission(_, { put }) {
+      let permissions = { menu: [], button: [] }; 
+      yield put({
+        type: "savePermissions",
+        payload: { permissions }
+      });
+    } 
   },
 
   reducers: {
+    changeLanguage(state, { payload} ) {
+      return {
+        ...state,
+      language: payload,
+      }
+    },
     changeLayoutCollapsed(state, { payload }) {
       return {
         ...state,
@@ -76,7 +138,13 @@ export default {
         ...state,
         currentRouter: payload.currentRouter
       };
-    }
+    },
+    savePermissions(state, { payload }) {
+      return {
+        ...state,
+        permissions: payload.permissions
+      };
+    },
   },
 
   subscriptions: {

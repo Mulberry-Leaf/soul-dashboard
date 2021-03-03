@@ -11,9 +11,11 @@ import GlobalHeader from "../components/GlobalHeader";
 import SiderMenu from "../components/SiderMenu";
 import NotFound from "../routes/Exception/404";
 import { getRoutes } from "../utils/utils";
-import Authorized from "../utils/Authorized";
+import AuthRoute, {checkMenuAuth, getAuthMenus } from "../utils/AuthRoute";
 import { getMenuData } from "../common/menu";
 import logo from "../assets/logo.svg";
+
+const MyContext = React.createContext();
 
 message.config({
   top: 200,
@@ -22,7 +24,6 @@ message.config({
 });
 
 const { Content, Header } = Layout;
-const { AuthorizedRoute, check } = Authorized;
 
 /**
  * Get the redirect address from the menu.
@@ -79,6 +80,7 @@ const query = {
 
 @connect(({ global, loading }) => ({
   plugins: global.plugins,
+  permissions: global.permissions,
   loading: loading.effects["global/fetchPlugins"]
 }))
 class BasicLayout extends React.PureComponent {
@@ -86,6 +88,14 @@ class BasicLayout extends React.PureComponent {
     location: PropTypes.object,
     breadcrumbNameMap: PropTypes.object
   };
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      localeName: window.sessionStorage.getItem('locale') ? window.sessionStorage.getItem('locale') : 'en-US',
+      pluginsLoaded: false
+    }
+  }
 
   getChildContext() {
     const { location, routerData } = this.props;
@@ -100,12 +110,22 @@ class BasicLayout extends React.PureComponent {
     dispatch({
       type: "global/fetchPlugins",
       payload: {
-        callback: () => { }
+        callback: () => {
+          this.setState({
+            pluginsLoaded: true
+          })
+        }
       }
     });
     dispatch({
       type: "global/fetchPlatform"
     });
+    const token = window.sessionStorage.getItem("token");
+    if(!token){
+      this.props.history.push({
+        pathname: '/user/login'
+      })
+    }
   }
 
   getPageTitle() {
@@ -135,10 +155,10 @@ class BasicLayout extends React.PureComponent {
       urlParams.searchParams.delete("redirect");
       window.history.replaceState(null, "redirect", urlParams.href);
     } else {
-      const { routerData } = this.props;
+      const { routerData, permissions } = this.props;
       // get the first authorized route path in routerData
       const authorizedPath = Object.keys(routerData).find(
-        item => check(routerData[item].authority, item) && item !== "/"
+        item => checkMenuAuth(item, permissions) && item !== "/"
       );
       return authorizedPath;
     }
@@ -150,10 +170,27 @@ class BasicLayout extends React.PureComponent {
     dispatch({
       type: "login/logout"
     });
+
+    dispatch({
+      type: "global/resetPermission"
+    });
+
   };
 
+  changeLocalName = (value) => {
+    const { dispatch } = this.props;
+    this.setState({
+      localeName: value
+    });
+    dispatch({
+      type: 'global/changeLanguage',
+      payload: value,
+    })
+  }
+
   render() {
-    const { collapsed, routerData, match, location, plugins, dispatch, } = this.props;
+    const { collapsed, routerData, match, location, plugins, permissions, dispatch, } = this.props;
+    const { localeName, pluginsLoaded } = this.state;
     const bashRedirect = this.getBaseRedirect();
     const systemRoute = ["divide", "hystrix"];
     let menus = getMenuData();
@@ -162,13 +199,12 @@ class BasicLayout extends React.PureComponent {
         menus[0].children.push({ name: item.name, path: `/plug/${item.name}`, authority: undefined, id: item.id, locale: (`SOUL.MENU.PLUGIN.${ item.name.toUpperCase()}`) })
       }
     })
+    menus = getAuthMenus(menus, permissions, pluginsLoaded);
+
     const layout = (
       <Layout>
         <SiderMenu
           logo={logo}
-          // If you do not have the Authorized parameter
-          // you will be forced to jump to the 403 interface without permission
-          Authorized={Authorized}
           dispatch={dispatch}
           menuData={menus}
           collapsed={collapsed}
@@ -182,6 +218,7 @@ class BasicLayout extends React.PureComponent {
               collapsed={collapsed}
               onCollapse={this.handleMenuCollapse}
               onLogout={this.handleLogout}
+              changeLocalName={this.changeLocalName}
             />
           </Header>
           <Content
@@ -196,7 +233,7 @@ class BasicLayout extends React.PureComponent {
                 <Redirect key={item.from} exact from={item.from} to={item.to} />
               ))}
               {getRoutes(match.path, routerData).map(item => (
-                <AuthorizedRoute
+                <AuthRoute
                   key={item.key}
                   path={item.path}
                   component={item.component}
@@ -214,19 +251,21 @@ class BasicLayout extends React.PureComponent {
     );
 
     return (
-      <DocumentTitle title={this.getPageTitle()}>
-        <ContainerQuery query={query}>
-          {params => (
-            <div style={{ minWidth: 1200 }} className={classNames(params)}>
-              {layout}
-            </div>
+      <MyContext.Provider value={localeName}>
+        <DocumentTitle title={this.getPageTitle()}>
+          <ContainerQuery query={query}>
+            {params => (
+              <div style={{ minWidth: 1200 }} className={classNames(params)}>
+                {layout}
+              </div>
           )}
-        </ContainerQuery>
-      </DocumentTitle>
+          </ContainerQuery>
+        </DocumentTitle>
+      </MyContext.Provider>
     );
   }
 }
 
 export default connect(({ global = {} }) => ({
-  collapsed: global.collapsed
+  collapsed: global.collapsed,
 }))(BasicLayout);

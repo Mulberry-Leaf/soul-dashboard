@@ -29,10 +29,28 @@ export const menuData = [
     locale: 'SOUL.MENU.SYSTEM.MANAGMENT',
     children: [
       {
+        name: getIntlContent('SOUL.MENU.SYSTEM.MANAGMENT.ROLE'),
+        path: 'role',
+        locale: 'SOUL.MENU.SYSTEM.MANAGMENT.ROLE'
+      },
+      {
         name: getIntlContent('SOUL.MENU.SYSTEM.MANAGMENT.USER'),
         path: 'manage',
         locale: 'SOUL.MENU.SYSTEM.MANAGMENT.USER'
       },
+      {
+        name: getIntlContent('SOUL.MENU.SYSTEM.MANAGMENT.RESOURCE'),
+        path: 'resource',
+        locale: 'SOUL.MENU.SYSTEM.MANAGMENT.RESOURCE'
+      }
+    ],
+  },
+  {
+    name: getIntlContent('SOUL.MENU.CONFIG.MANAGMENT'),
+    icon: 'setting',
+    path: 'config',
+    locale: 'SOUL.MENU.CONFIG.MANAGMENT',
+    children: [
       {
         name: getIntlContent('SOUL.MENU.SYSTEM.MANAGMENT.PLUGIN'),
         path: 'plugin',
@@ -58,7 +76,6 @@ export const menuData = [
         path: 'dict',
         locale: 'SOUL.MENU.SYSTEM.MANAGMENT.DICTIONARY'
       }
-
     ],
   },
 ];

@@ -4,10 +4,12 @@ import { connect } from "dva";
 import { resizableComponents } from '../../../utils/resizable';
 import AddModal from "./AddModal";
 import { getCurrentLocale, getIntlContent } from "../../../utils/IntlUtils";
-import { emit } from '../../../utils/emit';
+import AuthButton from '../../../utils/AuthButton';
+import {resetAuthMenuCache} from '../../../utils/AuthRoute';
 
-@connect(({ plugin, loading }) => ({
+@connect(({ plugin, loading, global }) => ({
   plugin,
+  language: global.language,
   loading: loading.effects["plugin/fetch"]
 }))
 export default class Plugin extends Component {
@@ -20,7 +22,7 @@ export default class Plugin extends Component {
       selectedRowKeys: [],
       name: "",
       popup: "",
-      localeName:''
+      localeName: window.sessionStorage.getItem('locale') ? window.sessionStorage.getItem('locale') : 'en-US',
     };
   }
 
@@ -30,8 +32,13 @@ export default class Plugin extends Component {
     this.initPluginColumns();
   }
 
-  componentDidMount() {
-    emit.on('change_language', lang => this.changeLocale(lang))
+  componentDidUpdate() {
+    const { language } = this.props;
+    const { localeName } = this.state;
+    if (language !== localeName) {
+      this.initPluginColumns();
+      this.changeLocale(language);
+    }
   }
 
   handleResize = index => (e, { size }) => {
@@ -161,6 +168,7 @@ export default class Plugin extends Component {
               callback: () => { }
             }
           });
+          this.fetchPermissions();
         }
       });
     } else {
@@ -200,6 +208,7 @@ export default class Plugin extends Component {
                     callback: () => { }
                   }
                 });
+                this.fetchPermissions();
               }
             });
           }}
@@ -211,11 +220,22 @@ export default class Plugin extends Component {
     });
   };
 
-  // 批量启用或禁用
+  fetchPermissions = () => {
+    const { dispatch } = this.props;
+    dispatch({
+      type: 'global/refreshPermission',
+      payload: {
+        callback: () => {
+          resetAuthMenuCache();
+        }
+      }
+    });
+  }
 
+  // 批量启用或禁用
   enableClick = () => {
     const {dispatch} = this.props;
-    const {selectedRowKeys} = this.state;
+    const {selectedRowKeys, currentPage, name} = this.state;
     if(selectedRowKeys && selectedRowKeys.length>0) {
       dispatch({
         type: "plugin/fetchItem",
@@ -229,7 +249,11 @@ export default class Plugin extends Component {
               list: selectedRowKeys,
               enabled: !user.enabled
             },
-            fetchValue: {},
+            fetchValue: {
+              name,
+              currentPage,
+              pageSize: 12
+            },
             callback: () => {
               this.setState({selectedRowKeys: []});
             }
@@ -335,7 +359,7 @@ export default class Plugin extends Component {
           ellipsis:true,
           render: (text, record) => {
             return (
-              <div>
+              <AuthButton perms="system:plugin:edit">
                 <div
                   className="edit"
                   onClick={() => {
@@ -344,8 +368,7 @@ export default class Plugin extends Component {
                 >
                   {getIntlContent("SOUL.SYSTEM.EDITOR")}
                 </div>
-              </div>
-
+              </AuthButton>
             );
           }
         }
@@ -378,52 +401,61 @@ export default class Plugin extends Component {
             placeholder={getIntlContent("SOUL.PLUGIN.INPUTNAME")}
             style={{ width: 240 }}
           />
-          <Button
-            type="primary"
-            style={{ marginLeft: 20 }}
-            onClick={this.searchClick}
-          >
-            {getIntlContent("SOUL.SYSTEM.SEARCH")}
-          </Button>
-
-          <Popconfirm
-            title={getIntlContent("SOUL.COMMON.DELETE")}
-            placement='bottom'
-            onConfirm={() => {
-              this.deleteClick()
-            }}
-            okText={getIntlContent("SOUL.COMMON.SURE")}
-            cancelText={getIntlContent("SOUL.COMMON.CALCEL")}
-          >
+          <AuthButton perms="system:plugin:list">
+            <Button
+              type="primary"
+              style={{ marginLeft: 20 }}
+              onClick={this.searchClick}
+            >
+              {getIntlContent("SOUL.SYSTEM.SEARCH")}
+            </Button>
+          </AuthButton>
+          <AuthButton perms="system:plugin:delete">
+            <Popconfirm
+              title={getIntlContent("SOUL.COMMON.DELETE")}
+              placement='bottom'
+              onConfirm={() => {
+                this.deleteClick()
+              }}
+              okText={getIntlContent("SOUL.COMMON.SURE")}
+              cancelText={getIntlContent("SOUL.COMMON.CALCEL")}
+            >
+              <Button
+                style={{ marginLeft: 20 }}
+                type="danger"
+              >
+                {getIntlContent("SOUL.SYSTEM.DELETEDATA")}
+              </Button>
+            </Popconfirm>
+          </AuthButton>
+          <AuthButton perms="system:plugin:add">
             <Button
               style={{ marginLeft: 20 }}
-              type="danger"
+              type="primary"
+              onClick={this.addClick}
             >
-              {getIntlContent("SOUL.SYSTEM.DELETEDATA")}
+              {getIntlContent("SOUL.SYSTEM.ADDDATA")}
             </Button>
-          </Popconfirm>
-          <Button
-            style={{ marginLeft: 20 }}
-            type="primary"
-            onClick={this.addClick}
-          >
-            {getIntlContent("SOUL.SYSTEM.ADDDATA")}
-          </Button>
-          <Button
-            style={{ marginLeft: 20 }}
-            icon="reload"
-            type="primary"
-            onClick={this.syncAllClick}
-          >
-            {getIntlContent("SOUL.PLUGIN.SYNCALLDATA")}
-          </Button>
-          <Button
-            style={{ marginLeft: 20 }}
-            type="primary"
-            onClick={this.enableClick}
-          >
-            {getIntlContent("SOUL.PLUGIN.BATCH")}
-          </Button>
+          </AuthButton>
+          <AuthButton perms="system:plugin:modify">
+            <Button
+              style={{ marginLeft: 20 }}
+              icon="reload"
+              type="primary"
+              onClick={this.syncAllClick}
+            >
+              {getIntlContent("SOUL.PLUGIN.SYNCALLDATA")}
+            </Button>
+          </AuthButton>
+          <AuthButton perms="system:plugin:disable">
+            <Button
+              style={{ marginLeft: 20 }}
+              type="primary"
+              onClick={this.enableClick}
+            >
+              {getIntlContent("SOUL.PLUGIN.BATCH")}
+            </Button>
+          </AuthButton>
         </div>
 
         <Table

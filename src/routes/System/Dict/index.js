@@ -4,10 +4,11 @@ import { connect } from "dva";
 import { resizableComponents } from '../../../utils/resizable';
 import AddModal from "./AddModal";
 import { getCurrentLocale, getIntlContent } from "../../../utils/IntlUtils";
-import { emit } from '../../../utils/emit'
+import AuthButton from '../../../utils/AuthButton';
 
-@connect(({ soulDict, loading }) => ({
+@connect(({ soulDict, loading, global }) => ({
   soulDict,
+  language: global.language,
   loading: loading.effects["soulDict/fetch"]
 }))
 export default class SoulDict extends Component {
@@ -22,7 +23,7 @@ export default class SoulDict extends Component {
       dictName: "",
       dictCode: "",
       popup: "",
-      localeName:''
+      localeName: window.sessionStorage.getItem('locale') ? window.sessionStorage.getItem('locale') : 'en-US',
     };
   }
 
@@ -32,8 +33,13 @@ export default class SoulDict extends Component {
     this.initPluginColumns();
   }
 
-  componentDidMount(){
-    emit.on('change_language', lang => this.changeLocale(lang))
+  componentDidUpdate() {
+    const { language } = this.props;
+    const { localeName } = this.state;
+    if (language !== localeName) {
+      this.initPluginColumns();
+      this.changeLocale(language);
+    }
   }
 
   handleResize = index => (e, { size }) => {
@@ -361,14 +367,16 @@ export default class SoulDict extends Component {
           key: "operate",
           render: (text, record) => {
             return (
-              <div
-                className="edit"
-                onClick={() => {
-                  this.editClick(record);
-                }}
-              >
-                {getIntlContent("SOUL.SYSTEM.EDITOR")}
-              </div>
+              <AuthButton perms="system:dict:edit">
+                <div
+                  className="edit"
+                  onClick={() => {
+                    this.editClick(record);
+                  }}
+                >
+                  {getIntlContent("SOUL.SYSTEM.EDITOR")}
+                </div>
+              </AuthButton>
             );
           }
         }
@@ -414,44 +422,51 @@ export default class SoulDict extends Component {
             onChange={this.searchDictNameOnchange}
             style={{ width: 240 }}
           />
-          <Button
-            style={{ marginLeft: 20 }}
-            type="primary"
-            onClick={this.searchClick}
-          >
-            {getIntlContent("SOUL.META.PAGE.QUERY")}
-          </Button>
-          <Popconfirm
-            title={getIntlContent("SOUL.COMMON.DELETE")}
-            placement='bottom'
-            onConfirm={() => {
-              this.deleteClick()
-            }}
-            okText={getIntlContent("SOUL.COMMON.SURE")}
-            cancelText={getIntlContent("SOUL.COMMON.CALCEL")}
-          >
+          <AuthButton perms="system:dict:list">
             <Button
               style={{ marginLeft: 20 }}
-              type="danger"
+              type="primary"
+              onClick={this.searchClick}
             >
-              {getIntlContent("SOUL.SYSTEM.DELETEDATA")}
+              {getIntlContent("SOUL.SYSTEM.SEARCH")}
             </Button>
-          </Popconfirm>
-          <Button
-            style={{ marginLeft: 20 }}
-            type="primary"
-            onClick={this.addClick}
-          >
-            {getIntlContent("SOUL.COMMON.ADD")}
-          </Button>
-          <Button
-            style={{ marginLeft: 20 }}
-            type="primary"
-            onClick={this.enableClick}
-          >
-            {getIntlContent("SOUL.PLUGIN.BATCH")}
-          </Button>
-
+          </AuthButton>
+          <AuthButton perms="system:dict:delete">
+            <Popconfirm
+              title={getIntlContent("SOUL.COMMON.DELETE")}
+              placement='bottom'
+              onConfirm={() => {
+                this.deleteClick()
+              }}
+              okText={getIntlContent("SOUL.COMMON.SURE")}
+              cancelText={getIntlContent("SOUL.COMMON.CALCEL")}
+            >
+              <Button
+                style={{ marginLeft: 20 }}
+                type="danger"
+              >
+                {getIntlContent("SOUL.SYSTEM.DELETEDATA")}
+              </Button>
+            </Popconfirm>
+          </AuthButton>
+          <AuthButton perms="system:dict:add">
+            <Button
+              style={{ marginLeft: 20 }}
+              type="primary"
+              onClick={this.addClick}
+            >
+              {getIntlContent("SOUL.COMMON.ADD")}
+            </Button>
+          </AuthButton>
+          <AuthButton perms="system:dict:disable">
+            <Button
+              style={{ marginLeft: 20 }}
+              type="primary"
+              onClick={this.enableClick}
+            >
+              {getIntlContent("SOUL.PLUGIN.BATCH")}
+            </Button>
+          </AuthButton>
         </div>
 
         <Table

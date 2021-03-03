@@ -4,12 +4,13 @@ import {connect} from "dva";
 import { resizableComponents } from '../../../utils/resizable';
 import AddModal from "./AddModal";
 import { getCurrentLocale, getIntlContent } from "../../../utils/IntlUtils";
-import { emit } from '../../../utils/emit';
+import AuthButton from '../../../utils/AuthButton';
 
 const { Option } = Select;
 
-@connect(({pluginHandle, loading}) => ({
+@connect(({pluginHandle, loading, global}) => ({
   pluginHandle,
+  language: global.language,
   loading: loading.effects["pluginHandle/fetch"]
 }))
 export default class PluginHandle extends Component {
@@ -22,21 +23,27 @@ export default class PluginHandle extends Component {
       selectedRowKeys: [],
       popup: "",
       pluginId:'',
-      localeName:''
+      localeName: window.sessionStorage.getItem('locale') ? window.sessionStorage.getItem('locale') : 'en-US',
     };
   }
 
-  componentWillMount() {
+  componentWillMount = async () => {
+    await this.getPluginDropDownList();
+
+    this.initPluginColumns();
+
     const {currentPage} = this.state;
     this.getAllPluginHandles(currentPage);
-    this.getPluginDropDownList();
-    this.initPluginColumns();
   }
 
-  componentDidMount(){
-    emit.on('change_language', lang => this.changeLocale(lang))
+  componentDidUpdate() {
+    const { language } = this.props;
+    const { localeName } = this.state;
+    if (language !== localeName) {
+      this.initPluginColumns();
+      this.changeLocale(language);
+    }
   }
-
 
   getAllPluginHandles = page => {
     const {dispatch} = this.props;
@@ -51,9 +58,9 @@ export default class PluginHandle extends Component {
     });
   };
 
-  getPluginDropDownList = () => {
+  getPluginDropDownList = async () => {
     const {dispatch} = this.props;
-    dispatch({
+    await dispatch({
       type: "pluginHandle/fetchPluginList",
     });
   };
@@ -100,12 +107,13 @@ export default class PluginHandle extends Component {
               disabled={true}
               {...pluginHandle}
               handleOk={values => {
-                const { field, label, id, pluginId,dataType,type,sort,required,defaultValue } = values;
+                const { field, label, id, pluginId,dataType,type,sort,required,defaultValue,rule } = values;
                 let extObj
-                if(required || defaultValue){
+                if(required || defaultValue || rule){
                   extObj=JSON.stringify({
                     'required':required,
-                    'defaultValue':defaultValue
+                    'defaultValue':defaultValue,
+                    'rule':rule || ""
                   })
                 }
                 dispatch({
@@ -118,6 +126,8 @@ export default class PluginHandle extends Component {
                     dataType,
                     type,
                     sort,
+                    defaultValue,
+                    rule,
                     extObj
                   },
                   fetchValue: {
@@ -158,12 +168,13 @@ export default class PluginHandle extends Component {
           pluginDropDownList={pluginDropDownList}
           handleOk={values => {
             const {dispatch} = this.props;
-            const {pluginId, label, field, dataType,type,sort,required,defaultValue} = values;
+            const {pluginId, label, field, dataType,type,sort,required,defaultValue,rule} = values;
             let extObj
-            if(required || defaultValue){
+            if(required || defaultValue || rule){
               extObj=JSON.stringify({
                 'required':required,
-                'defaultValue':defaultValue
+                'defaultValue':defaultValue,
+                'rule': rule || ""
               })
             }
             dispatch({
@@ -175,6 +186,8 @@ export default class PluginHandle extends Component {
                 dataType,
                 type,
                 sort,
+                defaultValue,
+                rule,
                 extObj
               },
               fetchValue: {
@@ -400,7 +413,7 @@ export default class PluginHandle extends Component {
           ellipsis: true,
           render: (text, record) => {
             return (
-              <div>
+              <AuthButton perms="system:pluginHandler:edit">
                 <div
                   className="edit"
                   onClick={() => {
@@ -409,8 +422,7 @@ export default class PluginHandle extends Component {
                 >
                   {getIntlContent("SOUL.SYSTEM.EDITOR")}
                 </div>
-              </div>
-
+              </AuthButton>
             );
           }
         }
@@ -421,10 +433,10 @@ export default class PluginHandle extends Component {
   render() {
     const {pluginHandle, loading} = this.props;
     const {pluginHandleList, total, pluginDropDownList} = pluginHandle;
-    const {currentPage, selectedRowKeys, pluginId, popup} = this.state;
+    const {currentPage, selectedRowKeys, pluginId, popup, columns = []} = this.state;
 
 
-    const columns = this.state.columns.map((col, index) => ({
+    const tableColumns = columns.map((col, index) => ({
       ...col,
       onHeaderCell: column => ({
         width: column.width,
@@ -455,36 +467,42 @@ export default class PluginHandle extends Component {
               })
             }
           </Select>
-          <Button
-            type="primary"
-            style={{ marginLeft: 20 }}
-            onClick={this.searchClick}
-          >
-            {getIntlContent("SOUL.SYSTEM.SEARCH")}
-          </Button>
-          <Popconfirm
-            title={getIntlContent("SOUL.COMMON.DELETE")}
-            placement='bottom'
-            onConfirm={() => {
-              this.deleteClick()
-            }}
-            okText={getIntlContent("SOUL.COMMON.SURE")}
-            cancelText={getIntlContent("SOUL.COMMON.CALCEL")}
-          >
+          <AuthButton perms="system:pluginHandler:list">
+            <Button
+              type="primary"
+              style={{ marginLeft: 20 }}
+              onClick={this.searchClick}
+            >
+              {getIntlContent("SOUL.SYSTEM.SEARCH")}
+            </Button>
+          </AuthButton>
+          <AuthButton perms="system:pluginHandler:delete">
+            <Popconfirm
+              title={getIntlContent("SOUL.COMMON.DELETE")}
+              placement='bottom'
+              onConfirm={() => {
+                this.deleteClick()
+              }}
+              okText={getIntlContent("SOUL.COMMON.SURE")}
+              cancelText={getIntlContent("SOUL.COMMON.CALCEL")}
+            >
+              <Button
+                style={{marginLeft: 20}}
+                type="danger"
+              >
+                {getIntlContent("SOUL.COMMON.DELETE.NAME")}
+              </Button>
+            </Popconfirm>
+          </AuthButton>
+          <AuthButton perms="system:pluginHandler:add">
             <Button
               style={{marginLeft: 20}}
-              type="danger"
+              type="primary"
+              onClick={this.addClick}
             >
-              {getIntlContent("SOUL.COMMON.DELETE")}
+              {getIntlContent("SOUL.SYSTEM.ADDDATA")}
             </Button>
-          </Popconfirm>
-          <Button
-            style={{marginLeft: 20}}
-            type="primary"
-            onClick={this.addClick}
-          >
-            {getIntlContent("SOUL.SYSTEM.ADDDATA")}
-          </Button>
+          </AuthButton>
         </div>
         <Table
           size="small"
@@ -492,7 +510,7 @@ export default class PluginHandle extends Component {
           style={{marginTop: 30}}
           bordered
           loading={loading}
-          columns={columns}
+          columns={tableColumns}
           dataSource={pluginHandleList}
           rowSelection={rowSelection}
           pagination={{
